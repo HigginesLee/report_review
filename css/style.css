@@ -1036,3 +1036,17 @@ tbody tr:hover {
 .exp-content-section.active {
     display: block;
 }
+
+/* 提示词配置状态圆点 */
+.prompt-dot {
+    width: 8px;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.prompt-dot.configured {
+    background: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}

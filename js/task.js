@@ -41,35 +41,10 @@ export function savePromptToStorage(courseId, expId, data) {
 }
 
 /**
- * 进入提示词配置界面
+ * 进入提示词配置界面 (已弃用，功能已合并至选择报告页面)
  */
 export function goToPromptConfig() {
-    const selectedCheckboxes = document.querySelectorAll('input.checkbox[data-exp]:checked');
-    if (selectedCheckboxes.length === 0) {
-        alert('请至少选择一份报告！');
-        return;
-    }
-
-    const selectedExpIds = new Set();
-    selectedCheckboxes.forEach(cb => {
-        selectedExpIds.add(cb.getAttribute('data-exp'));
-    });
-
-    document.getElementById('configCourseName').textContent = state.currentCourse.name;
-    const course = courseData[state.currentCourse.id];
-    if (!course) {
-        alert('无法找到课程数据，请返回首页重试');
-        return;
-    }
-    const selectedExperiments = (course.experiments || []).filter(exp => selectedExpIds.has(exp.id));
-
-    document.getElementById('configLabCount').textContent = selectedExperiments.length;
-    const totalReports = selectedExperiments.reduce((sum, exp) => sum + getExpCount(exp), 0);
-    document.getElementById('configReportCount').textContent = totalReports;
-
-    generateExperimentConfigs(selectedExperiments);
-    updateConfigProgress();
-    showView('promptConfigView');
+    showView('reportListView');
 }
 
 /**
@@ -178,10 +153,17 @@ export function openConfigModal(expId) {
 export function updateConfigRowStatus(expId) {
     const cached = loadPromptFromStorage(state.currentCourse.id, expId);
     const isConfigured = cached && cached.prompt && cached.prompt.trim().length > 0;
-    const icon = document.getElementById(`status_icon_${expId}`);
-    if (icon) {
-        icon.className = `status-check ${isConfigured ? 'completed' : 'pending'}`;
-        icon.textContent = isConfigured ? '✅' : '⏳';
+
+    // 更新侧边栏圆点
+    const dot = document.getElementById(`nav_dot_${expId}`);
+    if (dot) {
+        dot.className = `prompt-dot ${isConfigured ? 'configured' : ''}`;
+    }
+
+    // 如果是当前激活的实验，更新内容区按钮
+    const activeSection = document.querySelector('.exp-content-section.active');
+    if (activeSection && activeSection.id === `section_${expId}`) {
+        import('./ui.js').then(m => m.updateContentToolbar(expId, isConfigured));
     }
 }
 
@@ -227,22 +209,24 @@ function showModalSavedFeedback() {
 }
 
 /**
- * 更新配置进度条
+ * 更新配置进度条 (已合并场景下按所有实验计算)
  */
 export function updateConfigProgress() {
-    const configRows = document.querySelectorAll('.experiment-row');
-    if (configRows.length === 0) return;
+    const course = courseData[state.currentCourse.id];
+    if (!course || !course.experiments) return;
 
     let completed = 0;
-    configRows.forEach(row => {
-        const expId = row.id.replace('config_row_', '');
-        const cached = loadPromptFromStorage(state.currentCourse.id, expId);
+    const experiments = course.experiments;
+
+    experiments.forEach(exp => {
+        const cached = loadPromptFromStorage(state.currentCourse.id, exp.id);
         if (cached && cached.prompt && cached.prompt.trim().length > 0) {
             completed++;
         }
     });
 
-    const progress = Math.round((completed / configRows.length) * 100);
+    const progress = Math.round((completed / experiments.length) * 100);
+    // 注意：原本的进度条在已删除的 promptConfigView 中，暂时不更新 UI 除非新页面也有进度条
     const fill = document.getElementById('configProgressFill');
     const text = document.getElementById('configProgressText');
     if (fill) fill.style.width = `${progress}%`;

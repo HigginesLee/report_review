@@ -72,12 +72,18 @@ export function generateReportGroups(experiments) {
     const expToolbar = contentArea.querySelector('#activeExpToolbar');
 
     experiments.forEach((exp, index) => {
+        const cached = loadPromptFromStorage(state.currentCourse.id, exp.id);
+        const isConfigured = cached && cached.prompt && cached.prompt.trim().length > 0;
+
         // 创建导航项
         const navItem = document.createElement('div');
         navItem.className = `exp-nav-item ${index === 0 ? 'active' : ''}`;
         navItem.dataset.expId = exp.id;
         navItem.innerHTML = `
-            <span>${exp.name}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="prompt-dot ${isConfigured ? 'configured' : ''}" id="nav_dot_${exp.id}"></span>
+                <span>${exp.name}</span>
+            </div>
             <span class="exp-nav-badge" id="nav_badge_${exp.id}">0</span>
         `;
         navItem.onclick = () => switchExperimentTab(exp.id);
@@ -110,7 +116,7 @@ export function generateReportGroups(experiments) {
 
         if (index === 0) {
             expNameHeader.textContent = exp.name;
-            expToolbar.innerHTML = `<input type="checkbox" class="checkbox-all" data-exp-all="${exp.id}" id="main_cb_all_${exp.id}"> <label for="main_cb_all_${exp.id}" style="font-size:13px; color:#64748b; cursor:pointer;">全选当前实验</label>`;
+            updateContentToolbar(exp.id, isConfigured);
         }
     });
 
@@ -144,17 +150,42 @@ export function switchExperimentTab(expId) {
         el.classList.toggle('active', el.id === `section_${expId}`);
     });
 
-    // 更新标题
+    // 更新详情区表头
     const exp = Object.values(courseData).flatMap(c => c.experiments).find(e => e.id === expId);
     if (exp) {
         document.getElementById('activeExpName').textContent = exp.name;
-        const toolbar = document.getElementById('activeExpToolbar');
-        const isAllSelected = document.querySelectorAll(`input.checkbox[data-exp="${expId}"]`).length ===
-            document.querySelectorAll(`input.checkbox[data-exp="${expId}"]:checked`).length;
+        const cached = loadPromptFromStorage(state.currentCourse.id, expId);
+        const isConfigured = cached && cached.prompt && cached.prompt.trim().length > 0;
+        updateContentToolbar(expId, isConfigured);
+    }
+}
 
-        toolbar.innerHTML = `<input type="checkbox" class="checkbox-all" data-exp-all="${expId}" id="main_cb_all_${expId}" ${isAllSelected ? 'checked' : ''}> <label for="main_cb_all_${expId}" style="font-size:13px; color:#64748b; cursor:pointer;">全选当前实验</label>`;
+/**
+ * 更新内容区工具栏 (包含全选和配置提示词按钮)
+ */
+export function updateContentToolbar(expId, isConfigured) {
+    const toolbar = document.getElementById('activeExpToolbar');
+    if (!toolbar) return;
 
-        toolbar.querySelector('.checkbox-all').addEventListener('change', (e) => toggleAll(e.target, expId));
+    const isAllSelected = document.querySelectorAll(`input.checkbox[data-exp="${expId}"]`).length ===
+        document.querySelectorAll(`input.checkbox[data-exp="${expId}"]:checked`).length;
+
+    toolbar.innerHTML = `
+        <div style="display:flex; align-items:center; gap:20px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" class="checkbox-all" data-exp-all="${expId}" id="main_cb_all_${expId}" ${isAllSelected ? 'checked' : ''}>
+                <label for="main_cb_all_${expId}" style="font-size:13px; color:#64748b; cursor:pointer;">全选本实验</label>
+            </div>
+            <div style="width:1px; height:16px; background:#e2e8f0;"></div>
+            <button class="btn ${isConfigured ? 'btn-secondary' : 'btn-primary'}" data-action="openConfigModal" data-exp="${expId}" style="padding: 6px 14px; font-size: 13px;">
+                ${isConfigured ? '已配置提示词' : '配置提示词'}
+            </button>
+        </div>
+    `;
+
+    const newMainCb = toolbar.querySelector('.checkbox-all');
+    if (newMainCb) {
+        newMainCb.addEventListener('change', (e) => toggleAll(e.target, expId));
     }
 }
 

@@ -32,13 +32,11 @@
             <div class="stepper" id="globalStepper">
                 <span class="step-chip active" data-step="courseSelectView">1. 选择课程</span>
                 <span class="step-sep">›</span>
-                <span class="step-chip" data-step="reportListView">2. 选择报告</span>
+                <span class="step-chip" data-step="reportListView">2. 选择报告及配置</span>
                 <span class="step-sep">›</span>
-                <span class="step-chip" data-step="promptConfigView">3. 配置提示词</span>
+                <span class="step-chip" data-step="taskExecutionView">3. 执行评阅</span>
                 <span class="step-sep">›</span>
-                <span class="step-chip" data-step="taskExecutionView">4. 执行评阅</span>
-                <span class="step-sep">›</span>
-                <span class="step-chip" data-step="summaryView">5. 汇总</span>
+                <span class="step-chip" data-step="summaryView">4. 汇总</span>
             </div>
 
             <div class="header">
@@ -117,53 +115,6 @@
                     </div>
                 </div>
 
-                <!-- 视图2: 实验提示词配置 -->
-                <div id="promptConfigView" class="view">
-                    <div class="breadcrumb">
-                        <a data-action="showView" data-view="courseSelectView">首页</a> /
-                        <a data-action="showView" data-view="reportListView">选择报告</a> / 配置提示词
-                    </div>
-
-                    <div class="info-card">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                            <div>
-                                <h3 style="margin-bottom: 15px; color: #667eea;">📚 课程信息：<span
-                                        id="configCourseName"></span></h3>
-                                <div style="display: flex; gap: 30px;">
-                                    <div><strong>实验数：</strong><span id="configLabCount"></span></div>
-                                    <div><strong>待评阅：</strong><span id="configReportCount"></span></div>
-                                </div>
-                            </div>
-                            <div style="text-align: right; min-width: 150px;">
-                                <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">配置完成度：<span
-                                        id="configProgressText">0%</span></div>
-                                <div class="config-progress-bar" style="width: 150px;">
-                                    <div class="config-progress-fill" id="configProgressFill"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="config-toolbar" id="configToolbar">
-                        <div class="config-toolbar-group">
-                            <span style="font-size: 14px; font-weight: 600; color: #334155;">批量配置:</span>
-                            <div class="template-selector" style="margin-bottom: 0;">
-                                <button class="template-btn" data-action="applyTemplateToAll" data-type="word"
-                                    data-template="comprehensive">为所有Word应用模板</button>
-                                <button class="template-btn" data-action="applyTemplateToAll" data-type="dify"
-                                    data-template="workflow_analysis">为所有Dify应用模板</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="experimentConfigs"></div>
-
-                    <div class="action-buttons">
-                        <button class="btn btn-secondary" data-action="showView"
-                            data-view="reportListView">返回列表</button>
-                        <button class="btn btn-primary" data-action="startReviewWithPrompts">正式开始评阅</button>
-                    </div>
-                </div>
 
                 <!-- 视图3: 报告列表 -->
                 <div id="reportListView" class="view">
@@ -187,8 +138,8 @@
                     <div id="reportGroups"></div>
                     <div class="action-buttons">
                         <button class="btn btn-secondary" data-action="showView"
-                            data-view="courseSelectView">返回</button>
-                        <button class="btn btn-primary" data-action="goToPromptConfig">配置提示词</button>
+                            data-view="courseSelectView">返回首页</button>
+                        <button class="btn btn-primary" data-action="startReviewWithPrompts">🚀 开始评阅任务</button>
                     </div>
                 </div>
 
@@ -413,7 +364,9 @@
                 <button class="modal-close" data-action="closeViewModal">×</button>
             </div>
             <div class="modal-body">
-                <div id="viewPromptContent" class="prompt-textarea" style="background: #f8f9fa; border-color: #e2e8f0; pointer-events: none; min-height: 250px; white-space: pre-wrap;"></div>
+                <div id="viewPromptContent" class="prompt-textarea"
+                    style="background: #f8f9fa; border-color: #e2e8f0; pointer-events: none; min-height: 250px; white-space: pre-wrap;">
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-action="closeViewModal">关闭</button>
@@ -421,7 +374,7 @@
         </div>
     </div>
 
-    
+
 </body>
 
 </html>
