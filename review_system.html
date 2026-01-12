@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验报告评阅系统 - Dify工作流</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="logo" data-action="showHome">
+                <div class="logo-icon">AI</div>
+                <h2>报告评阅</h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="active" data-action="showHome">🏠 系统首页</li>
+                <li data-action="showTeachingStats">📊 教学统计</li>
+                <li data-action="showTaskRecords">📜 任务记录</li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div class="stepper" id="globalStepper">
+                <span class="step-chip active" data-step="courseSelectView">1. 选择课程</span>
+                <span class="step-sep">›</span>
+                <span class="step-chip" data-step="reportListView">2. 选择报告</span>
+                <span class="step-sep">›</span>
+                <span class="step-chip" data-step="promptConfigView">3. 配置提示词</span>
+                <span class="step-sep">›</span>
+                <span class="step-chip" data-step="taskExecutionView">4. 执行评阅</span>
+                <span class="step-sep">›</span>
+                <span class="step-chip" data-step="summaryView">5. 汇总</span>
+            </div>
+
+            <div class="header">
+                <h1>🎓 实验报告智能评阅系统</h1>
+                <p>基于AI工作流的自动化评阅平台</p>
+            </div>
+
+            <div class="content">
+                <!-- 视图1: 课程选择 -->
+                <div id="courseSelectView" class="view active">
+                    <div class="breadcrumb">首页 / 选择课程</div>
+                    <h2 style="margin-bottom: 20px; color: #333;">选择要评阅的课程</h2>
+
+                    <div class="course-grid">
+                        <div class="course-card" data-action="selectCourse" data-id="java" data-name="Java程序设计">
+                            <h3>☕ Java程序设计</h3>
+                            <div class="course-info"><span>授课教师：张老师</span><span>2024春季</span></div>
+                            <div class="course-info"><span>班级：计算机2301-2302</span></div>
+                            <div class="course-stats">
+                                <div class="stat-item">
+                                    <div class="stat-number">5</div>
+                                    <div class="stat-label">实验数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">120</div>
+                                    <div class="stat-label">待评阅</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="course-card" data-action="selectCourse" data-id="datastructure" data-name="数据结构">
+                            <h3>🗂️ 数据结构</h3>
+                            <div class="course-info"><span>授课教师：李老师</span><span>2024春季</span></div>
+                            <div class="course-info"><span>班级：计算机2301</span></div>
+                            <div class="course-stats">
+                                <div class="stat-item">
+                                    <div class="stat-number">6</div>
+                                    <div class="stat-label">实验数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">85</div>
+                                    <div class="stat-label">待评阅</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="course-card" data-action="selectCourse" data-id="database" data-name="数据库原理">
+                            <h3>🗄️ 数据库原理</h3>
+                            <div class="course-info"><span>授课教师：王老师</span><span>2024春季</span></div>
+                            <div class="course-info"><span>班级：计算机2302-2303</span></div>
+                            <div class="course-stats">
+                                <div class="stat-item">
+                                    <div class="stat-number">4</div>
+                                    <div class="stat-label">实验数</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number">95</div>
+                                    <div class="stat-label">待评阅</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-card" style="margin-top:20px;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h3 style="margin:0; color:#667eea;">📝 最近任务记录</h3>
+                            <div>
+                                <button class="btn" data-action="showTaskRecords">查看全部</button>
+                                <button class="btn" data-action="clearAllTaskRecords">清空</button>
+                            </div>
+                        </div>
+                        <div id="homeTaskRecords">
+                            <div class="muted">暂无记录，完成一次评阅后将在此展示。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 视图2: 实验提示词配置 -->
+                <div id="promptConfigView" class="view">
+                    <div class="breadcrumb">
+                        <a data-action="showView" data-view="courseSelectView">首页</a> /
+                        <a data-action="showView" data-view="reportListView">选择报告</a> / 配置提示词
+                    </div>
+
+                    <div class="info-card">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                            <div>
+                                <h3 style="margin-bottom: 15px; color: #667eea;">📚 课程信息：<span
+                                        id="configCourseName"></span></h3>
+                                <div style="display: flex; gap: 30px;">
+                                    <div><strong>实验数：</strong><span id="configLabCount"></span></div>
+                                    <div><strong>待评阅：</strong><span id="configReportCount"></span></div>
+                                </div>
+                            </div>
+                            <div style="text-align: right; min-width: 150px;">
+                                <div style="font-size: 13px; color: #64748b; margin-bottom: 4px;">配置完成度：<span
+                                        id="configProgressText">0%</span></div>
+                                <div class="config-progress-bar" style="width: 150px;">
+                                    <div class="config-progress-fill" id="configProgressFill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-toolbar" id="configToolbar">
+                        <div class="config-toolbar-group">
+                            <span style="font-size: 14px; font-weight: 600; color: #334155;">批量配置:</span>
+                            <div class="template-selector" style="margin-bottom: 0;">
+                                <button class="template-btn" data-action="applyTemplateToAll" data-type="word"
+                                    data-template="comprehensive">为所有Word应用模板</button>
+                                <button class="template-btn" data-action="applyTemplateToAll" data-type="dify"
+                                    data-template="workflow_analysis">为所有Dify应用模板</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="experimentConfigs"></div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" data-action="showView"
+                            data-view="reportListView">返回列表</button>
+                        <button class="btn btn-primary" data-action="startReviewWithPrompts">正式开始评阅</button>
+                    </div>
+                </div>
+
+                <!-- 视图3: 报告列表 -->
+                <div id="reportListView" class="view">
+                    <div class="breadcrumb"><a data-action="showView" data-view="courseSelectView">首页</a> / 选择报告</div>
+                    <div class="info-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="margin-bottom: 10px; color: #667eea;"><span id="listCourseName"></span></h3>
+                                <p style="color: #666;">请勾选需要评阅的报告，或点击右侧按钮一键全选</p>
+                            </div>
+                            <button class="btn btn-success" data-action="startBatchReview">🚀 批量评阅所有</button>
+                        </div>
+                        <div id="selectionSummary" class="selection-summary" style="margin-top:12px; display:none;">
+                            <div>已选择 <strong id="selectedCount">0</strong> 份报告</div>
+                            <div>
+                                <button class="btn" data-action="selectAllVisible">全选本页</button>
+                                <button class="btn" data-action="clearAllSelection">清空选择</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="reportGroups"></div>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" data-action="showView"
+                            data-view="courseSelectView">返回</button>
+                        <button class="btn btn-primary" data-action="goToPromptConfig">配置提示词</button>
+                    </div>
+                </div>
+
+                <!-- 视图4: 任务执行 -->
+                <div id="taskExecutionView" class="view">
+                    <div class="breadcrumb">任务执行进度</div>
+                    <div class="task-progress">
+                        <h3 style="margin-bottom: 15px; color: #333;">📊 评阅任务执行中</h3>
+                        <p style="color: #666; margin-bottom: 20px;">课程：<strong id="taskCourseName"></strong></p>
+                        <div
+                            style="display:flex; align-items:center; gap:10px; margin-bottom:15px; color:#666; font-size:12px;">
+                            <span>策略速度：</span>
+                            <input id="simSpeed" type="range" min="100" max="1000" step="100" value="500"
+                                style="width:150px;">
+                            <span id="simSpeedLabel">500 ms/步</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressBar" style="width: 0%;">0%</div>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; margin-top: 10px; color: #666; font-size: 14px;">
+                            <span>已完成：<strong id="completedCount">0</strong> / <strong id="totalCount">0</strong></span>
+                            <span>预计剩余：<strong id="remainingTime">计算中...</strong></span>
+                        </div>
+                    </div>
+                    <div class="task-log">
+                        <h4 style="margin-bottom: 15px; color: #333;">实时进度</h4>
+                        <div id="taskList" class="task-list"></div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" data-action="pauseTask">暂停任务</button>
+                        <button class="btn btn-primary" id="viewSummaryBtn" style="display: none;"
+                            data-action="viewSummary">✨ 查看汇总分析</button>
+                    </div>
+                </div>
+
+                <!-- 视图5: 汇总报告 -->
+                <div id="summaryView" class="view">
+                    <div class="breadcrumb"><a data-action="showView" data-view="courseSelectView">首页</a> / 汇总报告</div>
+                    <h2 style="margin-bottom: 20px; color: #333;"><span id="summaryCourseName"></span> - 评阅汇总</h2>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <h3 id="summaryTotal">-</h3>
+                            <p>报告总数</p>
+                        </div>
+                        <div class="summary-card">
+                            <h3 id="summaryCompleted">-</h3>
+                            <p>已评阅</p>
+                        </div>
+                        <div class="summary-card">
+                            <h3 id="summaryAvgScore">-</h3>
+                            <p>平均分</p>
+                        </div>
+                        <div class="summary-card">
+                            <h3 id="summaryExcellent">-</h3>
+                            <p>优秀率</p>
+                        </div>
+                    </div>
+                    <div id="detailedReportContainer" style="display: none; margin-top: 25px;"></div>
+                    <div class="chart-container" style="margin-top: 25px;">
+                        <h3>📈 各实验统计</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>实验名称</th>
+                                    <th>总数</th>
+                                    <th>已阅</th>
+                                    <th>均分</th>
+                                    <th>优秀率</th>
+                                    <th>Word</th>
+                                    <th>Dify</th>
+                                </tr>
+                            </thead>
+                            <tbody id="experimentStatsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" data-action="showHome">返回首页</button>
+                        <button class="btn" data-action="showTeachingStats">教学统计</button>
+                        <button class="btn btn-primary" data-action="exportReport">📥 导出报告</button>
+                    </div>
+                </div>
+
+                <!-- 视图6: 教学统计 -->
+                <div id="teachingStatsView" class="view">
+                    <div class="breadcrumb"><a data-action="showView" data-view="courseSelectView">首页</a> / 教学统计</div>
+                    <h2 style="margin-bottom: 20px; color: #333;">教学统计 - <span id="statsCourseName"></span></h2>
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-title">报告总数</div>
+                            <div class="kpi-value" id="kpiTotalReports">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">已阅总数</div>
+                            <div class="kpi-value" id="kpiReviewed">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">平均得分</div>
+                            <div class="kpi-value" id="kpiAvgScore">-</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">合格率</div>
+                            <div class="kpi-value" id="kpiPassRate">-</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>实验完成进度</h3>
+                        <div id="expProgressList"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>成绩区间分布</h3>
+                        <div class="kpi-grid" id="scoreDistCards"></div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" data-action="viewSummary">返回汇总</button>
+                        <button class="btn" data-action="showHome">返回首页</button>
+                    </div>
+                </div>
+
+                <!-- 视图7: 任务记录 -->
+                <div id="taskRecordsView" class="view">
+                    <div class="breadcrumb"><a data-action="showView" data-view="courseSelectView">首页</a> / 任务记录</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2 style="margin:0; color:#333;">任务记录历史</h2>
+                        <button class="btn btn-danger" data-action="clearAllTaskRecords">清空所有记录</button>
+                    </div>
+                    <div class="chart-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>课程</th>
+                                    <th>数量</th>
+                                    <th>均分</th>
+                                    <th>合格率</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="taskRecordsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="chart-container" id="taskRecordDetail" style="display:none; margin-top:25px;">
+                        <h3>记录详情</h3>
+                        <div id="taskRecordDetailContent"></div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" data-action="showHome">返回首页</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示词配置模态框 -->
+    <div id="configModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalExpName">配置文件</h3>
+                <button class="modal-close" data-action="closeConfigModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalTypeSelector" class="info-card" style="margin-bottom: 20px; padding: 15px;">
+                    <label style="font-weight: 600; margin-right: 15px;">报告类型：</label>
+                    <select id="modalExpType" class="exp-type-select" data-action="modalChangeType"
+                        style="padding: 8px 15px;"></select>
+                </div>
+
+                <div id="modalWordSection" class="prompt-section">
+                    <label>📄 Word文档评阅提示词</label>
+                    <div class="template-selector">
+                        <button class="template-btn" data-action="modalApplyTemplate" data-type="word"
+                            data-template="comprehensive">综合评阅</button>
+                        <button class="template-btn" data-action="modalApplyTemplate" data-type="word"
+                            data-template="format">格式检查</button>
+                        <button class="template-btn" data-action="modalApplyTemplate" data-type="word"
+                            data-template="content">内容深度</button>
+                    </div>
+                    <textarea id="modalWordPrompt" class="prompt-textarea" placeholder="输入评阅提示词..."
+                        style="min-height: 200px;"></textarea>
+                </div>
+
+                <div id="modalDifySection" class="prompt-section" style="display:none;">
+                    <label>⚙️ Dify YAML评阅提示词</label>
+                    <div class="template-selector">
+                        <button class="template-btn" data-action="modalApplyTemplate" data-type="dify"
+                            data-template="workflow_analysis">工作流分析</button>
+                        <button class="template-btn" data-action="modalApplyTemplate" data-type="dify"
+                            data-template="prompt_quality">提示词质量</button>
+                        <button class="template-btn" data-action="modalApplyTemplate" data-type="dify"
+                            data-template="integration_test">集成测试</button>
+                    </div>
+                    <textarea id="modalDifyPrompt" class="prompt-textarea" placeholder="输入评阅提示词..."
+                        style="min-height: 200px;"></textarea>
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 13px; color: #666;">Dify YAML示例预览：</label>
+                        <div class="yaml-editor" style="min-height: 100px; padding: 10px;">
+                            <span class="keyword">version</span>: <span class="string">"1.0"</span>
+                            <span class="keyword">workflow</span>:
+                            <span class="keyword">name</span>: <span class="string">"学生实验工作流"</span>
+                            <span class="keyword">nodes</span>: [ ... ]
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div id="modalSavedIndicator" class="saved-indicator">
+                    <span class="saved-indicator-icon"></span>
+                    已实时保存
+                </div>
+                <button class="btn btn-primary" data-action="closeConfigModal"
+                    style="padding: 10px 25px;">完成并关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+    <!-- 查看提示词模态框 (只读) -->
+    <div id="viewPromptModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="viewModalTitle">查看提示词</h3>
+                <button class="modal-close" data-action="closeViewModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="viewPromptContent" class="prompt-textarea" style="background: #f8f9fa; border-color: #e2e8f0; pointer-events: none; min-height: 250px; white-space: pre-wrap;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-action="closeViewModal">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    
+</body>
+
+</html>
