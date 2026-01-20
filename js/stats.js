@@ -638,25 +638,67 @@ export function viewStudentDetails(studentIdOrName) {
         return;
     }
 
-    // 按实验分组并显示每次提交的分数
+    // 简单规则：根据分数范围生成可能的扣分点
+    function guessDeductionPoints(score) {
+        if (score < 60) return ['实验思路错误', '结果缺失或错误', '格式严重不规范'];
+        if (score < 70) return ['结果不完整', '实现细节错误', '缺少必要注释或说明'];
+        if (score < 85) return ['分析不够深入', '边界情况未处理', '表达或格式可改进'];
+        if (score < 95) return ['可增强注释', '可优化实现细节'];
+        return [];
+    }
+
+    // 按实验分组并收集分数与扣分点
     const byExp = {};
     matched.forEach(r => {
-        if (!byExp[r.expId]) byExp[r.expId] = { name: (courseData[state.currentCourse.id].experiments.find(e=>e.id===r.expId)||{}).name || r.expId, submissions: [] };
-        byExp[r.expId].submissions.push({ idx: r.idx, score: r.score, runId: r.runId, finishedAt: r.finishedAt });
+        if (!byExp[r.expId]) byExp[r.expId] = { name: (courseData[state.currentCourse.id].experiments.find(e => e.id === r.expId) || {}).name || r.expId, submissions: [], deductionCounts: {} };
+        const pts = r.score != null ? guessDeductionPoints(r.score) : [];
+        byExp[r.expId].submissions.push({ idx: r.idx, score: r.score, runId: r.runId, finishedAt: r.finishedAt, deductions: pts });
+        pts.forEach(p => byExp[r.expId].deductionCounts[p] = (byExp[r.expId].deductionCounts[p] || 0) + 1);
     });
 
-    let html = `<div style="background:#fff; border:1px solid #e6e6e6; padding:12px; border-radius:8px;"><h4 style="margin:0 0 10px 0;">${decoded} 的实验明细</h4>`;
-    html += `<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:8px; text-align:left;">实验</th><th style="padding:8px;">提交次数</th><th style="padding:8px;">平均分</th><th style="padding:8px;">详情</th></tr></thead><tbody>`;
+    // 构建 HTML：每个实验的提交详情 + 常见扣分点与改进建议
+    let html = `<div style="background:#fff; border:1px solid #e6e6e6; padding:12px; border-radius:8px;"><h4 style="margin:0 0 10px 0;">${decoded} 的实验明细与改进建议</h4>`;
+    html += `<div style="margin-bottom:10px; color:#666; font-size:13px;">汇总 ${matched.length} 次提交，按实验列出提交次数、平均分与常见扣分点。</div>`;
 
     Object.keys(byExp).forEach(expId => {
         const info = byExp[expId];
         const scores = info.submissions.map(s => s.score || 0);
-        const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
-        const details = info.submissions.map(s => `<div style="padding:4px 0;">索引:${s.idx} 分数:${s.score} ${s.finishedAt?('｜'+formatDate(new Date(s.finishedAt))):''}</div>`).join('');
-        html += `<tr><td style="padding:8px; border-top:1px solid #eee;">${info.name}</td><td style="padding:8px; border-top:1px solid #eee; text-align:center;">${scores.length}</td><td style="padding:8px; border-top:1px solid #eee; text-align:center;">${avg.toFixed(1)}</td><td style="padding:8px; border-top:1px solid #eee;">${details}</td></tr>`;
+        const avg = scores.length ? (scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+
+        html += `<div style="margin-top:12px; padding:10px; border:1px solid #f0f0f0; border-radius:6px; background:#fafafa;">
+            <div style="font-weight:600; color:#333; margin-bottom:6px;">${info.name} — 提交 ${scores.length} 次，平均分 ${avg.toFixed(1)}</div>`;
+
+        // 提交明细
+        html += `<div style="font-size:13px; color:#444; margin-bottom:8px;">`;
+        html += info.submissions.map(s => `<div style="padding:4px 0;">索引:${s.idx} 分数:${s.score}${s.finishedAt?('｜'+formatDate(new Date(s.finishedAt))):''}</div>`).join('');
+        html += `</div>`;
+
+        // 常见扣分点
+        const deductions = Object.entries(info.deductionCounts).sort((a, b) => b[1] - a[1]);
+        if (deductions.length > 0) {
+            html += `<div style="margin-top:8px;"><strong style="color:#333;">常见扣分点：</strong><ul style="margin:6px 0 0 18px; color:#555;">`;
+            deductions.forEach(([point, cnt]) => {
+                // 简短的改进建议
+                let suggestion = '';
+                if (point.includes('思路')) suggestion = '请先明确实验目标与方法，补充必要步骤说明。';
+                else if (point.includes('结果缺失')) suggestion = '确保输出结果完整，并提供必要的解释与截图/输出示例。';
+                else if (point.includes('格式')) suggestion = '检查文档结构与格式，统一命名与代码块样式。';
+                else if (point.includes('实现细节')) suggestion = '关注边界条件与异常处理，补充核心实现细节。';
+                else if (point.includes('注释')) suggestion = '增加注释，说明关键步骤与参数含义。';
+                else if (point.includes('分析')) suggestion = '在结果分析中加入原因判断、对比与改进建议。';
+                else suggestion = '加强相关部分描述与实现，提升准确性。';
+
+                html += `<li style="margin-bottom:6px;">${point}（出现 ${cnt} 次） — 建议：${suggestion}</li>`;
+            });
+            html += `</ul></div>`;
+        } else {
+            html += `<div style="color:#666;">暂无明显扣分点建议。</div>`;
+        }
+
+        html += `</div>`;
     });
 
-    html += `</tbody></table></div>`;
+    html += `</div>`;
     container.innerHTML = html;
 }
 
