@@ -11,6 +11,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap"
         rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -180,6 +181,8 @@
                 <div id="summaryView" class="view">
                     <div class="breadcrumb"><a data-action="showView" data-view="courseSelectView">首页</a> / 汇总报告</div>
                     <h2 style="margin-bottom: 20px; color: #333;"><span id="summaryCourseName"></span> - 评阅汇总</h2>
+                    
+                    <!-- 关键指标卡片 -->
                     <div class="summary-grid">
                         <div class="summary-card">
                             <h3 id="summaryTotal">-</h3>
@@ -198,9 +201,22 @@
                             <p>优秀率</p>
                         </div>
                     </div>
-                    <div id="detailedReportContainer" style="display: none; margin-top: 25px;"></div>
-                    <div class="chart-container" style="margin-top: 25px;">
-                        <h3>📈 各实验统计</h3>
+                    
+                    <!-- 图表分析区域 -->
+                    <div class="charts-section" style="margin-top: 30px;">
+                        <div class="chart-container">
+                            <h3>📊 实验平均分柱状图</h3>
+                            <canvas id="experimentAvgScoreChart" width="400" height="200"></canvas>
+                        </div>
+                        <div class="chart-container" style="margin-top: 25px;">
+                            <h3>🥧 成绩分布饼图</h3>
+                            <canvas id="userExperimentCompletionChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- 详细统计表格 -->
+                    <div class="chart-container" style="margin-top: 30px;">
+                        <h3>📈 各实验详细统计</h3>
                         <table>
                             <thead>
                                 <tr>
@@ -216,6 +232,31 @@
                             <tbody id="experimentStatsTableBody"></tbody>
                         </table>
                     </div>
+                    
+                    <!-- 学生统计表格 -->
+                    <div class="chart-container" style="margin-top: 30px;">
+                        <h3>👥 学生实验统计</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>学生姓名</th>
+                                    <th>提交实验数</th>
+                                    <th>平均分</th>
+                                    <th>最高分</th>
+                                    <th>最低分</th>
+                                    <th>优秀实验数</th>
+                                    <th>通过率</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentStatsTableBody"></tbody>
+                        </table>
+                        <div id="studentDetailContainer" style="margin-top:16px;"></div>
+                    </div>
+                    
+                    <div id="detailedReportContainer" style="display: none; margin-top: 25px;"></div>
+                    
+                    <!-- 操作按钮 -->
                     <div class="action-buttons">
                         <button class="btn btn-secondary" data-action="showHome">返回首页</button>
                         <button class="btn" data-action="showTeachingStats">教学统计</button>

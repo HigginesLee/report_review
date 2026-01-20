@@ -281,11 +281,29 @@ export function startReviewWithPrompts() {
         alert('请至少选择一份报告进行评阅！');
         return;
     }
-    const reports = finalChecked.map(cb => ({
-        expId: cb.getAttribute('data-exp'),
-        type: cb.getAttribute('data-type'),
-        idx: parseInt(cb.getAttribute('data-idx'))
-    }));
+    const reports = finalChecked.map(cb => {
+        const expId = cb.getAttribute('data-exp');
+        const type = cb.getAttribute('data-type');
+        const idx = parseInt(cb.getAttribute('data-idx'));
+        // 从行中读取学生信息（生成报告行时会包含学生ID和姓名）
+        let studentId = null;
+        let studentName = null;
+        try {
+            const row = cb.closest('tr');
+            if (row) {
+                // 假设表格结构：checkbox | 学号 | 姓名 | 类型 | ...
+                const cells = row.querySelectorAll('td');
+                if (cells && cells.length >= 3) {
+                    studentId = cells[1].textContent.trim();
+                    studentName = cells[2].textContent.trim();
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to read student info from row', e);
+        }
+
+        return { expId, type, idx, studentId, studentName };
+    });
 
     startReview(reports);
 }
@@ -389,13 +407,18 @@ export function simulateTaskExecution(reports, totalReports) {
                 if (icon) icon.textContent = '✅';
             }
 
+            // 使用从报表行读取的学生信息（如果提供），否则回退到旧的模拟ID/姓名逻辑
+            const resolvedStudentId = current.studentId || `student_${Math.floor(current.idx / 5) + 1}`;
+            const resolvedStudentName = current.studentName || `学生${Math.floor(current.idx / 5) + 1}`;
             state.processedReports.push({
                 courseId: state.currentCourse.id,
                 expId: current.expId,
                 type: current.type,
                 idx: current.idx,
                 runId: state.currentRunId,
-                score: scoreForReport(current.expId, current.type, current.idx)
+                score: scoreForReport(current.expId, current.type, current.idx),
+                studentId: resolvedStudentId,
+                studentName: resolvedStudentName
             });
         } else {
             clearInterval(interval);
@@ -425,6 +448,43 @@ export function finalizeTaskRun(runId) {
         return { id: exp.id, name: exp.name, total: t, avg: a, passRate: p, excellentRate: e };
     });
 
+    // 计算学生统计信息
+    const studentStats = {};
+    items.forEach(item => {
+        const studentId = item.studentId || 'unknown';
+        const studentName = item.studentName || `学生${studentId.split('_')[1] || '未知'}`;
+        
+        if (!studentStats[studentId]) {
+            studentStats[studentId] = {
+                name: studentName,
+                submissions: [],
+                scores: []
+            };
+        }
+        
+        studentStats[studentId].submissions.push(item);
+        studentStats[studentId].scores.push(item.score);
+    });
+
+    const byStudent = Object.values(studentStats).map(student => {
+        const submissions = student.scores.length;
+        const avgScore = submissions > 0 ? (student.scores.reduce((a, b) => a + b, 0) / submissions) : 0;
+        const maxScore = submissions > 0 ? Math.max(...student.scores) : 0;
+        const minScore = submissions > 0 ? Math.min(...student.scores) : 0;
+        const excellentCount = student.scores.filter(score => score >= 85).length;
+        const passRate = submissions > 0 ? (student.scores.filter(score => score >= 60).length / submissions * 100) : 0;
+        
+        return {
+            name: student.name,
+            submissions,
+            avgScore,
+            maxScore,
+            minScore,
+            excellentCount,
+            passRate
+        };
+    }).sort((a, b) => b.avgScore - a.avgScore);
+
     const record = {
         id: runId,
         courseId: state.currentCourse.id,
@@ -435,7 +495,8 @@ export function finalizeTaskRun(runId) {
         avgScore: avg,
         passRate,
         excellentRate: exRate,
-        byExperiment: byExp
+        byExperiment: byExp,
+        byStudent: byStudent
     };
     try {
         record.detailedReportHtml = generateDetailedReportHtml(course, items, byExp);
@@ -459,6 +520,44 @@ export function loadTaskRecords() {
     } catch (e) {
         console.error('Error loading task records:', e);
         return [];
+    }
+}
+
+/**
+ * 清空所有任务记录
+ */
+export function clearAllTaskRecords() {
+    if (confirm('确定要清空所有任务记录吗？此操作不可恢复。')) {
+        try {
+            localStorage.removeItem('taskRecords');
+            // 刷新任务记录表格
+            const { renderTaskRecordsTable } = document.appActions;
+            renderTaskRecordsTable([]);
+            alert('所有任务记录已清空。');
+        } catch (e) {
+            console.error('Error clearing task records:', e);
+            alert('清空记录失败，请重试。');
+        }
+    }
+}
+
+/**
+ * 删除单个任务记录
+ */
+export function deleteTaskRecord(id) {
+    if (confirm('确定要删除这条任务记录吗？')) {
+        try {
+            const records = loadTaskRecords();
+            const filteredRecords = records.filter(r => r.id !== id);
+            localStorage.setItem('taskRecords', JSON.stringify(filteredRecords));
+            // 刷新任务记录表格
+            const { renderTaskRecordsTable } = document.appActions;
+            renderTaskRecordsTable(filteredRecords);
+            alert('任务记录已删除。');
+        } catch (e) {
+            console.error('Error deleting task record:', e);
+            alert('删除记录失败，请重试。');
+        }
     }
 }
 

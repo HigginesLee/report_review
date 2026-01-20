@@ -44,15 +44,13 @@ export function computeTeachingStats(course) {
         const progressRatio = 0.75 + (h % 21) / 100;
         const reviewed = Math.min(total, Math.round(total * progressRatio));
 
-        const tilt = (h % 3) - 1;
-        let b = [0, 0, 0, 0, 0];
-        b[0] = Math.round(reviewed * 0.06);
-        b[1] = Math.round(reviewed * (0.12 + (tilt === -1 ? 0.04 : 0)));
-        b[2] = Math.round(reviewed * (0.28 + (tilt === 0 ? 0.04 : 0)));
-        b[3] = Math.round(reviewed * (0.34 + (tilt === 1 ? 0.04 : 0)));
-        b[4] = reviewed - (b[0] + b[1] + b[2] + b[3]);
-
-        const centers = [50, 65, 75, 85, 95];
+            // 确保 canvas 有稳定高度，避免响应式计算时父容器高度不确定导致无限扩展
+            try {
+                expChartCanvas.style.height = expChartCanvas.style.height || '220px';
+                scoreChartCanvas.style.height = scoreChartCanvas.style.height || '220px';
+            } catch (e) {
+                console.warn('Could not set canvas style height', e);
+            }
         const scoreSum = b.reduce((s, c, i) => s + c * centers[i], 0);
         const avgScore = reviewed > 0 ? (scoreSum / reviewed) : 0;
         const pass = reviewed - b[0];
@@ -154,6 +152,11 @@ export function viewSummary() {
         console.error('Error generating summary:', e);
         document.getElementById('detailedReportContainer').style.display = 'none';
     }
+    
+    // 渲染图表
+    renderExperimentAvgScoreChart();
+    renderUserExperimentCompletionChart();
+    
     showView('summaryView');
 }
 
@@ -194,6 +197,9 @@ export function refreshSummaryFromProcessed() {
             </tr>
         `;
     }).join('');
+
+    // 渲染学生统计表格
+    renderStudentStatsTable(list);
 }
 
 /**
@@ -288,12 +294,31 @@ export function renderTaskRecordsTable(records) {
  * 查看单个评阅记录详情
  */
 export function viewTaskRecord(id) {
+    // 防止重复调用
+    if (window.viewingTaskRecord === id) {
+        return;
+    }
+    window.viewingTaskRecord = id;
+
+    // 清理之前的图表实例（只清理存在的实例）
+    if (window.taskRecordExpChart && typeof window.taskRecordExpChart.destroy === 'function') {
+        window.taskRecordExpChart.destroy();
+        window.taskRecordExpChart = null;
+    }
+    if (window.taskRecordScoreChart && typeof window.taskRecordScoreChart.destroy === 'function') {
+        window.taskRecordScoreChart.destroy();
+        window.taskRecordScoreChart = null;
+    }
+
     const { loadTaskRecords } = document.appActions;
     const records = loadTaskRecords();
     const r = records.find(x => x.id === id);
     const box = document.getElementById('taskRecordDetail');
     const content = document.getElementById('taskRecordDetailContent');
-    if (!r || !box || !content) return;
+    if (!r || !box || !content) {
+        window.viewingTaskRecord = null;
+        return;
+    }
     box.style.display = 'block';
 
     let experimentTableHtml = '';
@@ -325,6 +350,41 @@ export function viewTaskRecord(id) {
         `;
     }
 
+    let studentTableHtml = '';
+    if (r.byStudent && r.byStudent.length > 0) {
+        studentTableHtml = `
+            <div style="margin-top:20px;">
+                <h4 style="color:#333; font-size:16px; margin-bottom:10px;">学生维度分析</h4>
+                <table style="width:100%; border-collapse: collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#f8f9fa;">
+                            <th style="padding:10px; border:1px solid #eee; text-align:left;">学生姓名</th>
+                            <th style="padding:10px; border:1px solid #eee;">提交实验数</th>
+                            <th style="padding:10px; border:1px solid #eee;">平均分</th>
+                            <th style="padding:10px; border:1px solid #eee;">最高分</th>
+                            <th style="padding:10px; border:1px solid #eee;">最低分</th>
+                            <th style="padding:10px; border:1px solid #eee;">优秀实验数</th>
+                            <th style="padding:10px; border:1px solid #eee;">通过率</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${r.byStudent.map(student => `
+                            <tr>
+                                <td style="padding:10px; border:1px solid #eee;">${student.name}</td>
+                                <td style="padding:10px; border:1px solid #eee; text-align:center;">${student.submissions}</td>
+                                <td style="padding:10px; border:1px solid #eee; text-align:center;">${student.avgScore.toFixed(1)}</td>
+                                <td style="padding:10px; border:1px solid #eee; text-align:center;">${student.maxScore}</td>
+                                <td style="padding:10px; border:1px solid #eee; text-align:center;">${student.minScore}</td>
+                                <td style="padding:10px; border:1px solid #eee; text-align:center;">${student.excellentCount}</td>
+                                <td style="padding:10px; border:1px solid #eee; text-align:center;">${student.passRate.toFixed(1)}%</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
     content.innerHTML = `
         <div style="color:#666; margin-bottom:8px;">课程：${r.courseName} ｜ 起止：${formatDate(new Date(r.startedAt))} - ${formatDate(new Date(r.finishedAt))}</div>
         <div class="kpi-grid" style="margin-top:8px;">
@@ -333,14 +393,421 @@ export function viewTaskRecord(id) {
             <div class="kpi-card"><div class="kpi-title">合格率</div><div class="kpi-value">${r.total ? (r.passRate * 100).toFixed(1) + '%' : '-'}</div></div>
             <div class="kpi-card"><div class="kpi-title">优秀率</div><div class="kpi-value">${r.total ? (r.excellentRate * 100).toFixed(1) + '%' : '-'}</div></div>
         </div>
-        ${experimentTableHtml}
-    `;
-    if (r.detailedReportHtml) {
-        content.innerHTML += `
-            <div style="margin-top:14px;">
-                <h4 style="color:#333; font-size:16px; margin-bottom:8px;">详细报告预览</h4>
-                <div style="background:#fff; padding:12px; border:1px solid #e6e6e6; border-radius:6px; max-height:400px; overflow:auto;">${r.detailedReportHtml}</div>
+
+        <!-- 图表区域 -->
+        <div style="margin-top: 20px;">
+            <h4 style="color:#333; font-size:16px; margin-bottom:15px;">📊 数据可视化</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px;">
+                    <h5 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">实验平均分分布</h5>
+                    <canvas id="taskRecordExpChart" width="300" height="200"></canvas>
+                </div>
+                <div style="background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px;">
+                    <h5 style="margin: 0 0 10px 0; color: #333; font-size: 14px;">成绩区间分布</h5>
+                    <canvas id="taskRecordScoreChart" width="300" height="200"></canvas>
+                </div>
             </div>
-        `;
+        </div>
+
+        ${experimentTableHtml}
+        ${studentTableHtml}
+    `;
+
+    // 等待DOM更新后再渲染图表
+    setTimeout(() => {
+        renderTaskRecordCharts(r);
+
+        // 在图表渲染完成后，如果有详细报告，则添加它
+        if (r.detailedReportHtml) {
+            // 再次等待图表完全渲染
+            setTimeout(() => {
+                // 使用DOM操作添加详细报告，而不是重新设置innerHTML
+                const detailDiv = document.createElement('div');
+                detailDiv.style.marginTop = '14px';
+                detailDiv.innerHTML = `
+                    <h4 style="color:#333; font-size:16px; margin-bottom:8px;">详细报告预览</h4>
+                    <div style="background:#fff; padding:12px; border:1px solid #e6e6e6; border-radius:6px; max-height:400px; overflow:auto;">${r.detailedReportHtml}</div>
+                `;
+                content.appendChild(detailDiv);
+            }, 150); // 增加等待时间确保图表完全渲染
+        }
+
+        // 清除标志位
+        window.viewingTaskRecord = null;
+    }, 100);
+}
+
+/**
+ * 渲染实验平均分柱状图
+ */
+function renderExperimentAvgScoreChart() {
+    const course = courseData[state.currentCourse.id];
+    const list = state.processedReports.filter(r => r.courseId === state.currentCourse.id);
+    
+    const labels = course.experiments.map(exp => exp.name);
+    const data = course.experiments.map(exp => {
+        const expList = list.filter(r => r.expId === exp.id);
+        const reviewed = expList.length;
+        return reviewed ? (expList.reduce((s, r) => s + r.score, 0) / reviewed) : 0;
+    });
+
+    const ctx = document.getElementById('experimentAvgScoreChart');
+    if (!ctx) return;
+
+    // 固定高度，避免响应式计算导致高度异常
+    try { ctx.style.height = ctx.style.height || '220px'; } catch (e) { console.warn(e); }
+
+    try {
+        // 清理之前的图表实例
+        if (window.experimentAvgScoreChart && typeof window.experimentAvgScoreChart.destroy === 'function') {
+            window.experimentAvgScoreChart.destroy();
+        }
+        
+        window.experimentAvgScoreChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '平均分',
+                    data: data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error rendering experiment chart:', error);
+    }
+}
+
+/**
+ * 渲染用户实验完成情况饼图
+ */
+function renderUserExperimentCompletionChart() {
+    const course = courseData[state.currentCourse.id];
+    const list = state.processedReports.filter(r => r.courseId === state.currentCourse.id);
+    
+    // 计算成绩分布
+    const scoreRanges = {
+        '优秀 (85-100)': list.filter(r => r.score >= 85).length,
+        '良好 (70-84)': list.filter(r => r.score >= 70 && r.score < 85).length,
+        '及格 (60-69)': list.filter(r => r.score >= 60 && r.score < 70).length,
+        '不及格 (0-59)': list.filter(r => r.score < 60).length
+    };
+
+    const ctx = document.getElementById('userExperimentCompletionChart');
+    if (!ctx) return;
+
+    // 固定高度，避免响应式计算导致高度异常
+    try { ctx.style.height = ctx.style.height || '220px'; } catch (e) { console.warn(e); }
+
+    try {
+        // 清理之前的图表实例
+        if (window.userExperimentCompletionChart && typeof window.userExperimentCompletionChart.destroy === 'function') {
+            window.userExperimentCompletionChart.destroy();
+        }
+        
+        window.userExperimentCompletionChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(scoreRanges),
+                datasets: [{
+                    data: Object.values(scoreRanges),
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(255, 159, 64, 0.6)',
+                        'rgba(255, 99, 132, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(255, 99, 132, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error rendering completion chart:', error);
+    }
+}
+
+/**
+ * 渲染学生统计表格
+ */
+function renderStudentStatsTable(reports) {
+    // 按学生ID分组统计
+    const studentStats = {};
+    
+    reports.forEach(report => {
+        const studentId = report.studentId || 'unknown';
+        const studentName = report.studentName || `学生${studentId.split('_')[1] || '未知'}`;
+        
+        if (!studentStats[studentId]) {
+            studentStats[studentId] = {
+                name: studentName,
+                submissions: [],
+                scores: []
+            };
+        }
+        
+        studentStats[studentId].submissions.push(report);
+        studentStats[studentId].scores.push(report.score);
+    });
+    
+    // 计算每个学生的统计数据
+    const studentData = Object.values(studentStats).map(student => {
+        const submissions = student.scores.length;
+        const avgScore = submissions > 0 ? (student.scores.reduce((a, b) => a + b, 0) / submissions) : 0;
+        const maxScore = submissions > 0 ? Math.max(...student.scores) : 0;
+        const minScore = submissions > 0 ? Math.min(...student.scores) : 0;
+        const excellentCount = student.scores.filter(score => score >= 85).length;
+        const passRate = submissions > 0 ? (student.scores.filter(score => score >= 60).length / submissions * 100) : 0;
+        
+        return {
+            name: student.name,
+            submissions,
+            avgScore,
+            maxScore,
+            minScore,
+            excellentCount,
+            passRate
+        };
+    });
+    
+    // 按平均分降序排序
+    studentData.sort((a, b) => b.avgScore - a.avgScore);
+    
+    const tbody = document.getElementById('studentStatsTableBody');
+    tbody.innerHTML = studentData.map(student => `
+        <tr>
+            <td>${student.name}</td>
+            <td>${student.submissions}</td>
+            <td>${student.avgScore.toFixed(1)}</td>
+            <td>${student.maxScore}</td>
+            <td>${student.minScore}</td>
+            <td>${student.excellentCount}</td>
+            <td>${student.passRate.toFixed(1)}%</td>
+            <td style="text-align:center;"><button class="btn" data-action="viewStudentDetails" data-student-id="${encodeURIComponent(student.name)}">查看详情</button></td>
+        </tr>
+    `).join('');
+
+    // 清空之前的详情区域
+    const detailContainer = document.getElementById('studentDetailContainer');
+    if (detailContainer) detailContainer.innerHTML = '';
+}
+
+/**
+ * 显示某学生的详细实验记录（按已处理报告中的 studentName/ studentId 匹配）
+ */
+export function viewStudentDetails(studentIdOrName) {
+    const decoded = decodeURIComponent(studentIdOrName);
+    const list = state.processedReports.filter(r => r.courseId === state.currentCourse.id);
+    // 支持通过 studentId 或 studentName 查询
+    const matched = list.filter(r => (r.studentId && r.studentId === decoded) || (r.studentName && r.studentName === decoded));
+
+    const container = document.getElementById('studentDetailContainer');
+    if (!container) return;
+    if (!matched || matched.length === 0) {
+        container.innerHTML = `<div class="muted">未找到学生 ${decoded} 的记录。</div>`;
+        return;
+    }
+
+    // 按实验分组并显示每次提交的分数
+    const byExp = {};
+    matched.forEach(r => {
+        if (!byExp[r.expId]) byExp[r.expId] = { name: (courseData[state.currentCourse.id].experiments.find(e=>e.id===r.expId)||{}).name || r.expId, submissions: [] };
+        byExp[r.expId].submissions.push({ idx: r.idx, score: r.score, runId: r.runId, finishedAt: r.finishedAt });
+    });
+
+    let html = `<div style="background:#fff; border:1px solid #e6e6e6; padding:12px; border-radius:8px;"><h4 style="margin:0 0 10px 0;">${decoded} 的实验明细</h4>`;
+    html += `<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f8f9fa;"><th style="padding:8px; text-align:left;">实验</th><th style="padding:8px;">提交次数</th><th style="padding:8px;">平均分</th><th style="padding:8px;">详情</th></tr></thead><tbody>`;
+
+    Object.keys(byExp).forEach(expId => {
+        const info = byExp[expId];
+        const scores = info.submissions.map(s => s.score || 0);
+        const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+        const details = info.submissions.map(s => `<div style="padding:4px 0;">索引:${s.idx} 分数:${s.score} ${s.finishedAt?('｜'+formatDate(new Date(s.finishedAt))):''}</div>`).join('');
+        html += `<tr><td style="padding:8px; border-top:1px solid #eee;">${info.name}</td><td style="padding:8px; border-top:1px solid #eee; text-align:center;">${scores.length}</td><td style="padding:8px; border-top:1px solid #eee; text-align:center;">${avg.toFixed(1)}</td><td style="padding:8px; border-top:1px solid #eee;">${details}</td></tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+}
+
+/**
+ * 渲染任务记录图表
+ */
+function renderTaskRecordCharts(record) {
+    console.log('Rendering task record charts for record:', record.id);
+
+    // 防止重复渲染
+    if (window.renderingCharts) {
+        console.log('Charts are already being rendered, skipping...');
+        return;
+    }
+    window.renderingCharts = true;
+
+    try {
+        // 清理之前的图表实例
+        const expChartCanvas = document.getElementById('taskRecordExpChart');
+        const scoreChartCanvas = document.getElementById('taskRecordScoreChart');
+
+        if (!expChartCanvas || !scoreChartCanvas) {
+            console.warn('Chart canvases not found');
+            window.renderingCharts = false;
+            return;
+        }
+
+        console.log('Canvas elements found, creating charts...');
+
+        // 获取canvas的2D上下文
+        const expChartCtx = expChartCanvas.getContext('2d');
+        const scoreChartCtx = scoreChartCanvas.getContext('2d');
+
+        // 清理之前的图表实例（如果存在且有destroy方法）
+        if (window.taskRecordExpChart && typeof window.taskRecordExpChart.destroy === 'function') {
+            window.taskRecordExpChart.destroy();
+            window.taskRecordExpChart = null;
+        }
+        if (window.taskRecordScoreChart && typeof window.taskRecordScoreChart.destroy === 'function') {
+            window.taskRecordScoreChart.destroy();
+            window.taskRecordScoreChart = null;
+        }
+
+        // 实验平均分柱状图
+        if (record.byExperiment && record.byExperiment.length > 0) {
+            console.log('Creating experiment chart with data:', record.byExperiment);
+            const expLabels = record.byExperiment.map(exp => exp.name);
+            const expData = record.byExperiment.map(exp => exp.avg);
+
+            try {
+                window.taskRecordExpChart = new Chart(expChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: expLabels,
+                        datasets: [{
+                            label: '平均分',
+                            data: expData,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        }
+                    }
+                });
+                console.log('Experiment chart created successfully');
+            } catch (chartError) {
+                console.error('Error creating experiment chart:', chartError);
+            }
+        } else {
+            console.log('No experiment data available for chart');
+        }
+
+        // 成绩区间分布饼图
+        if (record.byStudent && record.byStudent.length > 0) {
+            console.log('Creating score chart with student data:', record.byStudent.length, 'students');
+            // 计算成绩分布
+            const scoreRanges = {
+                '优秀 (85-100)': record.byStudent.filter(s => s.avgScore >= 85).length,
+                '良好 (70-84)': record.byStudent.filter(s => s.avgScore >= 70 && s.avgScore < 85).length,
+                '及格 (60-69)': record.byStudent.filter(s => s.avgScore >= 60 && s.avgScore < 70).length,
+                '不及格 (0-59)': record.byStudent.filter(s => s.avgScore < 60).length
+            };
+
+            console.log('Score ranges:', scoreRanges);
+
+            try {
+                window.taskRecordScoreChart = new Chart(scoreChartCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(scoreRanges),
+                        datasets: [{
+                            data: Object.values(scoreRanges),
+                            backgroundColor: [
+                                'rgba(75, 192, 192, 0.6)',
+                                'rgba(255, 206, 86, 0.6)',
+                                'rgba(255, 159, 64, 0.6)',
+                                'rgba(255, 99, 132, 0.6)'
+                            ],
+                            borderColor: [
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(255, 99, 132, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                console.log('Score chart created successfully');
+            } catch (chartError) {
+                console.error('Error creating score chart:', chartError);
+            }
+        } else {
+            console.log('No student data available for chart');
+        }
+
+        console.log('Chart rendering completed');
+
+    } catch (error) {
+        console.error('Error in renderTaskRecordCharts:', error);
+    } finally {
+        // 清除渲染标志
+        window.renderingCharts = false;
     }
 }

@@ -24,6 +24,8 @@ import {
     startReview,
     pauseTask,
     loadTaskRecords,
+    clearAllTaskRecords,
+    deleteTaskRecord,
     openConfigModal,
     updateModalSections,
     openViewPromptModal
@@ -33,7 +35,8 @@ import {
     viewSummary,
     exportReport,
     renderTaskRecordsTable,
-    viewTaskRecord
+    viewTaskRecord,
+    viewStudentDetails
 } from './stats.js';
 import { formatDate } from './utils.js';
 
@@ -134,6 +137,10 @@ function handleGlobalClick(e) {
         case 'viewTaskRecord':
             viewTaskRecord(id);
             break;
+        case 'viewStudentDetails':
+            // student id passed in dataset as student-id (可能是姓名或学号)
+            import('./stats.js').then(m => m.viewStudentDetails(target.dataset.studentId || target.dataset.student));
+            break;
         case 'deleteTaskRecord':
             deleteTaskRecord(id);
             break;
@@ -228,37 +235,4 @@ export function startBatchReview() {
     }));
 
     startReview(reports);
-}
-
-/**
- * 清空任务记录
- */
-function clearAllTaskRecords() {
-    if (!confirm('确认清空所有任务记录？')) return;
-    try {
-        localStorage.removeItem('taskRecords');
-        renderTaskRecordsTable([]);
-        renderHomeTaskRecords();
-        const box = document.getElementById('taskRecordDetail');
-        if (box) box.style.display = 'none';
-    } catch (e) {
-        console.error('Failed to clear records:', e);
-    }
-}
-
-/**
- * 删除单个任务记录
- */
-function deleteTaskRecord(id) {
-    const records = loadTaskRecords();
-    const newList = records.filter(r => r.id !== id);
-    try {
-        localStorage.setItem('taskRecords', JSON.stringify(newList));
-        renderTaskRecordsTable(newList);
-        renderHomeTaskRecords();
-        const box = document.getElementById('taskRecordDetail');
-        if (box) box.style.display = 'none';
-    } catch (e) {
-        console.error('Failed to delete record:', e);
-    }
 }

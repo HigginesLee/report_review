@@ -28,15 +28,15 @@ def main():
     # 启动服务器
     Handler = http.server.SimpleHTTPRequestHandler
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        print(f"\n✅ 服务器已启动，正在打开浏览器...")
+        print("\n✅ 服务器已启动，正在打开浏览器...")
         
         # 自动打开浏览器
         try:
             webbrowser.open(f'http://localhost:{PORT}/review_system.html')
-        except:
+        except Exception:
             print("⚠️ 无法自动打开浏览器，请手动访问上述地址")
         
-        print(f"🔄 服务器运行中...\n")
+        print("🔄 服务器运行中...\n")
         
         try:
             httpd.serve_forever()
